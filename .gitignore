@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# 数据库文件（不要上传数据！）
+*.db
+*.sqlite3
+
+# 配置文件（不要上传含敏感信息的配置文件！）
+config.yaml
+.env
+
+# 日志文件
+*.log
+logs/
+
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo

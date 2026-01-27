@@ -1,0 +1,11 @@
+# 核心依赖
+requests>=2.31.0
+lxml>=4.9.3
+PyYAML>=6.0
+
+# 数据库
+sqlite3  # Python内置
+
+# 可选：如果需要其他功能
+# pandas>=2.0.0  # 数据分析
+# apscheduler>=3.10.0  # 定时任务
