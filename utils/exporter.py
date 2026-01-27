@@ -7,6 +7,7 @@ import csv
 import logging
 from datetime import datetime
 from typing import List, Dict
+from .retry import simple_retry
 
 class DataExporter:
     """数据导出器"""
@@ -130,3 +131,13 @@ class DataExporter:
         except Exception as e:
             self.logger.error(f"保存统计信息失败: {e}")
             return None
+    
+    @simple_retry(max_retries=2, delay=0.5)
+    def save_to_json_with_retry(self, news_data: Dict[str, List[Dict]]):
+        """带重试的JSON导出方法"""
+        return self.save_to_json(news_data)
+    
+    @simple_retry(max_retries=2, delay=0.5)
+    def save_to_csv_with_retry(self, news_data: Dict[str, List[Dict]]):
+        """带重试的CSV导出方法"""
+        return self.save_to_csv(news_data)

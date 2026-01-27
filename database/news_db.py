@@ -242,42 +242,47 @@ class NewsDatabase:
             logging.error(f"获取最近新闻失败: {e}")
             return []
     
-    def get_news_count(self, category: str = None) -> Dict[str, int]:
-        """获取新闻数量统计"""
+    def get_news_stats(self) -> Dict:
+        """获取新闻统计信息"""
         try:
             cursor = self.conn.cursor()
             
-            if category:
-                cursor.execute("SELECT COUNT(*) as count FROM news WHERE category = ?", (category,))
-                total = cursor.fetchone()['count']
-                
-                cursor.execute('''
-                SELECT category, COUNT(*) as count 
-                FROM news 
-                WHERE category = ?
-                GROUP BY category
-                ''', (category,))
-            else:
-                cursor.execute("SELECT COUNT(*) as count FROM news")
-                total = cursor.fetchone()['count']
-                
-                cursor.execute('''
-                SELECT category, COUNT(*) as count 
-                FROM news 
-                GROUP BY category
-                ''')
+            # 总新闻数
+            cursor.execute("SELECT COUNT(*) as total FROM news")
+            total = cursor.fetchone()['total']
             
-            rows = cursor.fetchall()
-            category_counts = {row['category']: row['count'] for row in rows}
+            # 按分类统计
+            cursor.execute('''
+            SELECT category, COUNT(*) as count 
+            FROM news 
+            GROUP BY category 
+            ORDER BY count DESC
+            ''')
+            categories = cursor.fetchall()
+            
+            by_category = {}
+            for row in categories:
+                by_category[row['category']] = row['count']
+            
+            # 最新爬取时间
+            cursor.execute("SELECT MAX(crawl_time) as latest FROM news")
+            latest_crawl = cursor.fetchone()['latest']
             
             return {
                 'total': total,
-                'by_category': category_counts
+                'by_category': by_category,
+                'latest_crawl': latest_crawl,
+                'categories_count': len(by_category)
             }
             
         except Exception as e:
-            logging.error(f"获取新闻统计失败: {e}")
-            return {'total': 0, 'by_category': {}}
+            logging.error(f"获取统计信息失败: {e}")
+            return {
+                'total': 0,
+                'by_category': {},
+                'latest_crawl': None,
+                'categories_count': 0
+            }
     
     def get_latest_crawl_time(self, category: str) -> Optional[str]:
         """获取指定分类最近一次爬取时间"""

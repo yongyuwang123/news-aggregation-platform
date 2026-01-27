@@ -1,0 +1,71 @@
+# 新浪新闻爬虫配置
+
+# 爬虫配置
+crawler:
+  base_url: "https://news.sina.com.cn/"
+  timeout: 10  # 请求超时(秒)
+  max_retries: 3  # 最大重试次数
+  delay_range: [1, 3]  # 延迟范围(秒)
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  rate_limiter:
+    max_requests: 15      # 每分钟最大请求数
+    time_window: 60       # 时间窗口（秒）
+    adaptive: true        # 是否启用自适应调整
+
+# 新闻分类配置
+categories:
+  enabled: true
+  list:
+    - name: "首页"
+      url: "https://news.sina.com.cn/"
+      max_news: 10
+    - name: "国内"
+      url: "https://news.sina.com.cn/china/"
+      max_news: 15
+    - name: "国际"
+      url: "https://news.sina.com.cn/world/"
+      max_news: 15
+    - name: "科技"
+      url: "https://tech.sina.com.cn/"
+      max_news: 12
+    - name: "体育"
+      url: "https://sports.sina.com.cn/"
+      max_news: 12
+    - name: "娱乐"
+      url: "https://ent.sina.com.cn/"
+      max_news: 12
+    - name: "财经"
+      url: "https://finance.sina.com.cn/"
+      max_news: 12
+
+# 数据库配置
+database:
+  type: "sqlite"  # sqlite 或 mysql
+  path: "database/data/news.db"  # SQLite数据库路径（更新为新的路径）
+  # mysql配置示例:
+  # host: "localhost"
+  # port: 3306
+  # user: "root"
+  # password: "password"
+  # db_name: "news_db"
+
+# 输出配置
+output:
+  save_to_database: true
+  save_json: true
+  save_csv: true
+  output_dir: "database/data"  # 输出目录也更新到database内
+  keep_raw_html: false  # 是否保存原始HTML
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/crawler.log"
+  max_size_mb: 10  # 日志文件最大大小(MB)
+  backup_count: 5  # 备份文件数量
+
+# 增量爬取配置
+incremental:
+  enabled: true
+  update_hours: 24  # 多少小时内的新闻算新内容
+  check_duplicate: true  # 检查重复标题

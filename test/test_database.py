@@ -8,10 +8,19 @@ import json
 import os
 import sys
 
-def print_table_structure(db_path="data/news.db"):
+# 添加项目根目录到路径
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from config.settings import config
+
+def print_table_structure(db_path=None):
     """打印表结构"""
+    if db_path is None:
+        # 使用配置文件中的数据库路径
+        db_path = config.get('database.path', 'database/data/news.db')
+    
     if not os.path.exists(db_path):
-        print(f"数据库文件不存在: {db_path}")
+        print(f"❌ 数据库文件不存在: {db_path}")
+        print("请先运行爬虫创建数据库")
         return
     
     conn = sqlite3.connect(db_path)
@@ -134,8 +143,11 @@ def print_table_structure(db_path="data/news.db"):
     print("✅ 数据库分析完成")
     print("=" * 60)
 
-def export_sample_news(db_path="data/news.db", limit=3):
+def export_sample_news(db_path=None, limit=3):
     """导出样本新闻数据"""
+    if db_path is None:
+        db_path = config.get('database.path', 'database/data/news.db')
+    
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -179,8 +191,10 @@ def export_sample_news(db_path="data/news.db", limit=3):
     conn.close()
 
 if __name__ == "__main__":
-    # 检查数据库文件
-    db_path = "data/news.db"
+    # 使用配置文件中的数据库路径
+    db_path = config.get('database.path', 'database/data/news.db')
+    
+    print(f"🔍 检查数据库文件: {db_path}")
     
     if os.path.exists(db_path):
         print_table_structure(db_path)
@@ -191,3 +205,5 @@ if __name__ == "__main__":
     else:
         print(f"❌ 数据库文件不存在: {db_path}")
         print("请先运行爬虫创建数据库")
+        print("\n💡 运行以下命令创建数据库:")
+        print("python main.py")

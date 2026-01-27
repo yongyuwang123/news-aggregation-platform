@@ -14,6 +14,7 @@ from .parser import NewsParser
 # 在 sina_crawler.py 开头添加：
 from utils.logger import setup_logging
 from utils.exporter import DataExporter
+from utils.rate_limiter import RateLimiter, rate_limit  # 新增导入
 
 class SinaNewsCrawler:
     """配置化的新浪新闻爬虫"""
@@ -32,13 +33,45 @@ class SinaNewsCrawler:
         # 请求会话
         self.session = self._create_session()
         
+        # 频率控制
+        self.rate_limiter = RateLimiter(
+            max_requests=config.get('rate_limiter.max_requests', 15),
+            time_window=config.get('rate_limiter.time_window', 60)
+        )
+        
         # 统计
         self.stats = {
             'total_crawled': 0,
             'success': 0,
             'failed': 0,
-            'duplicates': 0
+            'duplicates': 0,
+            'rate_limited_waits': 0,  # 新增：频率限制等待统计
+            'total_wait_time': 0.0    # 新增：总等待时间
         }
+
+    @rate_limit(max_requests=5, time_window=30)  # 对页面获取进行频率限制
+    def _fetch_page(self, url: str, retry_count: int = 0) -> Optional[str]:
+        """获取页面内容（带重试和频率控制）"""
+        try:
+            # 应用频率控制
+            wait_time = self.rate_limiter.wait_if_needed()
+            if wait_time > 0:
+                self.stats['rate_limited_waits'] += 1
+                self.stats['total_wait_time'] += wait_time
+            
+            response = self.session.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            response.encoding = 'utf-8'
+            return response.text
+            
+        except Exception as e:
+            if retry_count < self.max_retries:
+                logging.warning(f"请求失败，第{retry_count + 1}次重试: {url}")
+                time.sleep(2 ** retry_count)  # 指数退避
+                return self._fetch_page(url, retry_count + 1)
+            else:
+                logging.error(f"请求最终失败: {url} - {e}")
+                return None
     
     def _create_session(self):
         """创建请求会话"""
@@ -103,6 +136,11 @@ class SinaNewsCrawler:
             news_data = []
             for i, link in enumerate(news_links, 1):
                 logging.info(f"爬取进度: {i}/{len(news_links)} - {link['title'][:30]}...")
+                
+                # 应用频率控制状态检查
+                status = self.rate_limiter.get_status()
+                if status['remaining'] <= 1:
+                    logging.info(f"频率限制：剩余 {status['remaining']} 次请求，{status['reset_in']:.1f}s 后重置")
                 
                 news_detail = self.crawl_news_detail(link['url'], category_name)
                 if news_detail:
@@ -198,12 +236,17 @@ class SinaNewsCrawler:
         return all_news
     
     def get_stats(self) -> Dict:
-        """获取统计信息"""
-        db_stats = self.db.get_news_count()
-        return {
-            'crawl_stats': self.stats,
-            'database_stats': db_stats
+        """获取统计信息（扩展频率控制统计）"""
+        base_stats = {
+            'total_crawled': self.stats['total_crawled'],
+            'success': self.stats['success'],
+            'failed': self.stats['failed'],
+            'duplicates': self.stats['duplicates'],
+            'rate_limited_waits': self.stats['rate_limited_waits'],
+            'total_wait_time': round(self.stats['total_wait_time'], 2),
+            'rate_limiter_status': self.rate_limiter.get_status()
         }
+        return base_stats
     
     def export_data(self, news_data: Dict[str, List[Dict]]):
         """导出数据到文件"""
@@ -248,18 +291,29 @@ class SinaNewsCrawler:
         print("📊 爬虫统计")
         print("=" * 60)
         
-        crawl_stats = stats['crawl_stats']
-        db_stats = stats['database_stats']
+        # 修复：直接使用 stats 字典中的键
+        print(f"总爬取: {stats['total_crawled']} 篇")
+        print(f"成功保存: {stats['success']} 篇")
+        print(f"失败: {stats['failed']} 篇")
+        print(f"重复跳过: {stats['duplicates']} 篇")
         
-        print(f"总爬取: {crawl_stats['total_crawled']} 篇")
-        print(f"成功保存: {crawl_stats['success']} 篇")
-        print(f"失败: {crawl_stats['failed']} 篇")
-        print(f"重复跳过: {crawl_stats['duplicates']} 篇")
+        # 添加频率控制统计
+        if 'rate_limited_waits' in stats:
+            print(f"频率限制等待: {stats['rate_limited_waits']} 次")
+            print(f"总等待时间: {stats['total_wait_time']} 秒")
         
-        print(f"\n📁 数据库统计:")
-        print(f"  总新闻数: {db_stats['total']} 篇")
-        
-        for category, count in db_stats['by_category'].items():
-            print(f"  {category}: {count} 篇")
+        # 获取数据库统计信息
+        try:
+            from database.news_db import NewsDatabase
+            db = NewsDatabase(config.get('database.path'))
+            db_stats = db.get_news_stats()
+            
+            print(f"\n📁 数据库统计:")
+            print(f"  总新闻数: {db_stats['total']} 篇")
+            
+            for category, count in db_stats['by_category'].items():
+                print(f"  {category}: {count} 篇")
+        except Exception as e:
+            print(f"\n⚠️ 数据库统计获取失败: {e}")
         
         print("=" * 60)
