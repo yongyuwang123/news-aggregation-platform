@@ -2,6 +2,7 @@
 database/data/
 logs/
 sina_news_structure.html
+学习笔记.md
 
 # Python 缓存
 __pycache__/
