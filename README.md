@@ -85,18 +85,108 @@ categories:
       max_news: 20
 ```
 
-## 配置说明
+## 📈 项目状态
 
-### 主要配置项
+### ✅ 已完成功能
 
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `crawler.timeout` | 请求超时时间(秒) | 10 |
-| `crawler.max_retries` | 最大重试次数 | 3 |
-| `crawler.delay_range` | 请求延迟范围 | [1, 3] |
-| `database.path` | 数据库文件路径 | `database/data/news.db` |
-| `output.save_json` | 是否保存JSON文件 | `true` |
-| `logging.level` | 日志级别 | `INFO` |
+- [x] **模块化架构** - 清晰的代码组织，便于维护和扩展
+- [x] **多数据源支持** - GitHub Trending、Hacker News等数据源
+- [x] **数据库系统** - SQLite数据库，支持数据持久化
+- [x] **Web界面** - Flask框架，响应式设计
+- [x] **任务调度** - 自动化数据更新和清理
+- [x] **配置管理** - YAML配置文件，灵活配置
+- [x] **实用工具库** - 重试机制、限流器、日志管理
+
+### 🔄 进行中功能
+
+- [ ] **数据源完善** - 新浪新闻数据源调试和优化
+- [ ] **AI智能分析** - 集成DeepSeek API进行趋势分析
+- [ ] **数据可视化** - 图表展示技术趋势变化
+- [ ] **邮件日报** - 自动化技术趋势简报
+
+### 🔮 计划功能
+
+- [ ] **移动端适配** - 响应式移动界面
+- [ ] **用户系统** - 个性化订阅和收藏
+- [ ] **API开放** - 对外数据接口服务
+- [ ] **容器化部署** - Docker支持
+
+## 🛠️ 开发指南
+
+### 添加新数据源
+
+1. 在 `src/data_sources/` 创建新文件
+2. 继承 `DataSource` 基类
+3. 实现数据获取逻辑
+4. 在配置文件中启用数据源
+
+```python
+from src.data_sources.base_source import DataSource
+
+class NewDataSource(DataSource):
+    def fetch_data(self) -> List[Dict]:
+        # 实现数据获取逻辑
+        return data
+```
+
+### 数据库操作示例
+
+```python
+from src.storage.database import Database
+
+db = Database()
+
+# 保存数据
+db.save_articles(articles)
+
+# 查询数据
+latest_articles = db.get_latest_articles(limit=50)
+
+# 获取统计
+stats = db.get_stats()
+```
+
+### 实用工具使用
+
+```python
+from utils.rate_limiter import RateLimiter
+from utils.retry import retry
+
+# 限流器
+limiter = RateLimiter(max_calls=10, period=60)  # 每分钟最多10次
+
+# 重试机制
+@retry(max_attempts=3, delay=1)
+def fetch_data():
+    # 数据获取逻辑
+    pass
+```
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request！
+
+1. Fork本项目
+2. 创建功能分支
+3. 提交更改
+4. 推送到分支
+5. 创建Pull Request
+
+## 📄 许可证
+
+本项目采用MIT许可证。详见 [LICENSE](LICENSE) 文件。
+
+## 🙏 致谢
+
+- 感谢所有开源项目的贡献者
+- 特别感谢寒假学习计划的坚持
+- 感谢技术社区的支持和反馈
+
+---
+
+**🌟 一个项目学完Python全栈 · 寒假学习计划成果**
+
+> 通过构建TechPulse AI，我掌握了：Python全栈开发、数据采集、Web开发、数据库设计、任务调度、配置管理、工具库开发等核心技能。
 
 完整配置请参考 `config.yaml` 文件。
 
@@ -161,4 +251,3 @@ categories:
 - 支持新浪新闻多分类爬取
 - SQLite数据库存储
 - 配置化管理
-

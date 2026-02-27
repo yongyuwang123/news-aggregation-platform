@@ -1,55 +1,47 @@
-"""
-日志配置模块
-"""
-import os
+# src/utils/logger.py
 import logging
-import logging.handlers
-from config.settings import config
+import logging.config
+import yaml
+import os
+from pathlib import Path
 
-def setup_logging():
-    """配置日志系统"""
-    log_level = getattr(logging, config.get('logging.level', 'INFO').upper())
-    log_file = config.get('logging.file', 'logs/crawler.log')
+def setup_logging(
+    config_path: str = "config/logging.yaml",
+    default_level: int = logging.INFO,
+    logs_dir: str = "logs"
+):
+    """设置日志配置"""
     
-    # 确保日志目录存在
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    # 创建日志目录
+    Path(logs_dir).mkdir(exist_ok=True)
     
-    # 创建logger
-    logger = logging.getLogger()
-    logger.setLevel(log_level)
+    config_file = Path(config_path)
     
-    # 清除已有的handler
-    logger.handlers.clear()
-    
-    # 控制台handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-    console_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-    
-    # 文件handler（按大小轮转）
-    if log_file:
-        file_handler = logging.handlers.RotatingFileHandler(
-            filename=log_file,
-            maxBytes=config.get('logging.max_size_mb', 10) * 1024 * 1024,  # MB转Bytes
-            backupCount=config.get('logging.backup_count', 5),
-            encoding='utf-8'
-        )
-        file_handler.setLevel(log_level)
-        file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+    if config_file.exists():
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            
+            logging.config.dictConfig(config)
+            logging.info(f"日志配置已从 {config_path} 加载")
+            
+        except Exception as e:
+            logging.basicConfig(level=default_level)
+            logging.warning(f"加载日志配置文件失败，使用基础配置: {e}")
+    else:
+        # 基础配置
+        logging.basicConfig(
+            level=default_level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
-    
-    logging.info("日志系统初始化完成")
-    return logger
+        logging.info("使用基础日志配置")
 
-def get_logger(name: str) -> logging.Logger:
-    """获取指定名称的logger"""
-    return logging.getLogger(name)
+class LoggerMixin:
+    """为类提供logger的混入类"""
+    
+    @property
+    def logger(self):
+        if not hasattr(self, '_logger'):
+            self._logger = logging.getLogger(self.__class__.__name__)
+        return self._logger

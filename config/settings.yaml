@@ -1,0 +1,161 @@
+# TechPulse AI - 主配置文件
+# 集中管理应用基础配置，详细配置见各专项配置文件
+
+# 应用设置
+app:
+  name: "TechPulse AI"
+  version: "1.0.0"
+  environment: "development"  # development, production, testing
+  description: "多数据源技术趋势分析平台"
+  
+  # 开发者信息
+  author: "Your Name"
+  contact: "your.email@example.com"
+  
+  # 性能配置
+  max_workers: 4                    # 最大工作线程数
+  debug: true                       # 调试模式
+  
+# 数据源启用配置（详细配置见 sources.yaml）
+data_sources:
+  enabled:
+    - sina_news
+    - github_trending
+    - hacker_news      # 预留
+    # - reddit           # 预留
+  
+  # 全局数据源配置
+  global:
+    timeout: 10                     # 默认超时时间
+    max_retries: 3                  # 默认重试次数
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    
+  # 简化配置示例（详细配置在 sources.yaml）
+  sina_news:
+    base_url: "https://news.sina.com.cn"
+    categories: ["tech", "finance"]
+    
+  github_trending:
+    languages: ["", "python"]      # 空字符串表示所有语言
+    since: "daily"
+
+# 数据库基础配置（详细配置见 database.yaml）
+database:
+  type: "sqlite"                    # sqlite, mysql, postgresql
+  path: "data/techpulse.db"
+  echo_sql: false                   # 是否输出SQL日志
+  
+  # 生产环境数据库配置示例
+  # host: "localhost"
+  # port: 5432
+  # name: "techpulse"
+  # user: "techpulse_user"
+  # password: "${DB_PASSWORD}"      # 支持环境变量
+
+# 存储配置
+storage:
+  save_to_database: true
+  save_json: true
+  save_csv: true
+  output_dir: "data/exports"
+  cache_ttl_hours: 24
+  
+  # 文件存储配置
+  file_storage:
+    max_file_size: "10MB"
+    backup_count: 5
+    compression: true
+
+# 日志配置（详细配置见 logging.yaml）
+logging:
+  level: "INFO"                     # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/techpulse.log"
+  max_size_mb: 10
+  backup_count: 5
+  
+  # 日志模块级别配置
+  loggers:
+    src.data_sources: "INFO"
+    src.core: "DEBUG"
+    src.analyzers: "INFO"
+
+# 调度配置
+scheduler:
+  enabled: true
+  fetch_interval_hours: 4
+  cleanup_interval_days: 7
+  max_concurrent_sources: 2
+  
+  # 定时任务配置
+  jobs:
+    - name: "daily_fetch"
+      schedule: "0 */6 * * *"       # 每6小时
+      sources: ["sina_news", "github_trending"]
+      
+    - name: "weekly_analysis"
+      schedule: "0 0 * * 1"         # 每周一凌晨
+      analyzers: ["trend_analyzer", "popularity_analyzer"]
+
+# AI分析配置（后续扩展）
+ai_analysis:
+  enabled: false
+  provider: "deepseek"              # openai, deepseek, azure
+  api_key: "${AI_API_KEY}"          # 环境变量配置
+  model: "deepseek-chat"
+  max_tokens: 1000
+  analysis_interval_hours: 6
+  
+  # 分析任务配置
+  tasks:
+    - name: "trend_analysis"
+      prompt_template: "分析以下技术趋势..."
+      
+    - name: "sentiment_analysis"
+      prompt_template: "分析以下文本情感..."
+
+# 安全配置
+security:
+  # API密钥管理
+  api_keys:
+    encrypt: true
+    key_file: ".secrets/keys.enc"
+    
+  # 访问控制
+  access_control:
+    enabled: false
+    allowed_ips: ["127.0.0.1", "192.168.1.0/24"]
+
+# 监控配置
+monitoring:
+  enabled: true
+  
+  # 性能监控
+  performance:
+    enable_metrics: true
+    metrics_port: 9090
+    
+  # 健康检查
+  health_check:
+    endpoint: "/health"
+    interval: 30
+    
+  # 告警配置
+  alerts:
+    enabled: false
+    # slack_webhook: "${SLACK_WEBHOOK}"
+    # email_notifications: true
+
+# 环境变量配置（支持动态配置）
+env:
+  # 数据库配置
+  db_host: "${DB_HOST:-localhost}"
+  db_port: "${DB_PORT:-5432}"
+  
+  # API密钥
+  github_token: "${GITHUB_TOKEN}"
+  openai_key: "${OPENAI_API_KEY}"
+  
+  # 功能开关
+  enable_ai: "${ENABLE_AI:-false}"
+  enable_web: "${ENABLE_WEB:-false}"
