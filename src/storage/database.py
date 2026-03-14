@@ -235,6 +235,47 @@ class Database:
             
             return self._cursor_to_articles(cursor)
     
+    def get_daily_reports(self, limit: int = 30) -> List[Dict]:
+        """获取历史报告列表"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT report_date, summary, created_at 
+                FROM daily_reports 
+                ORDER BY report_date DESC 
+                LIMIT ?
+            ''', (limit,))
+            
+            reports = []
+            for row in cursor.fetchall():
+                reports.append({
+                    'report_date': row[0],
+                    'summary': row[1],
+                    'created_at': row[2]
+                })
+            
+            return reports
+    
+    def get_report_by_date(self, date_str: str) -> Optional[Dict]:
+        """根据日期获取报告详情"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT report_date, summary, recommendations, created_at 
+                FROM daily_reports 
+                WHERE report_date = ?
+            ''', (date_str,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'report_date': row[0],
+                    'summary': row[1],
+                    'recommendations': json.loads(row[2]) if row[2] else [],
+                    'created_at': row[3]
+                }
+            return None
+    
     def clear_old_data(self, days: int = 7):
         """清理旧数据（保留最近days天）"""
         with self.get_connection() as conn:

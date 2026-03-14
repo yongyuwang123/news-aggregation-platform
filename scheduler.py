@@ -4,6 +4,7 @@ TechPulse AI 定时任务
 每天8:00和20:00自动更新数据
 """
 import os
+
 import schedule
 import time
 import subprocess
@@ -84,9 +85,9 @@ def generate_daily_report():
         report = analyzer.analyze_daily_trends(today_articles)
         
         # 保存到数据库
+        today = datetime.now().strftime('%Y-%m-%d')
         with db.get_connection() as conn:
             cursor = conn.cursor()
-            today = datetime.now().strftime('%Y-%m-%d')
             cursor.execute('''
                 INSERT OR REPLACE INTO daily_reports (report_date, summary, recommendations)
                 VALUES (?, ?, ?)
@@ -95,8 +96,39 @@ def generate_daily_report():
         
         log("✅ 每日报告生成完成")
         
+        # 发送邮件通知
+        send_email_notification(today, report)
+        
     except Exception as e:
         log(f"💥 报告生成失败: {e}")
+
+def send_email_notification(date_str: str, report_data: dict):
+    """发送邮件通知"""
+    try:
+        # 获取收件人列表
+        recipients_str = os.getenv('EMAIL_RECIPIENTS', '')
+        if not recipients_str:
+            log("📧 未配置邮件收件人，跳过邮件发送")
+            return
+        
+        recipients = [email.strip() for email in recipients_str.split(',') if email.strip()]
+        
+        # 发送邮件
+        from src.utils.email_sender import EmailSender
+        email_sender = EmailSender()
+        success = email_sender.send_daily_report(recipients, {
+            'report_date': date_str,
+            'summary': report_data['summary'],
+            'recommendations': report_data['recommendations']
+        })
+        
+        if success:
+            log(f"📧 邮件发送成功: {len(recipients)} 个收件人")
+        else:
+            log("❌ 邮件发送失败")
+            
+    except Exception as e:
+        log(f"💥 邮件发送失败: {e}")
 
 def update_all():
     log("="*50)

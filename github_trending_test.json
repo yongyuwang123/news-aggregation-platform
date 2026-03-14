@@ -4,175 +4,175 @@
     "url": "https://github.com/microsoft/BitNet",
     "description": "Official inference framework for 1-bit LLMs",
     "language": "Python",
-    "total_stars": 34342,
+    "total_stars": 34392,
     "stars_today": 2227,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:15"
   },
   {
     "name": "langflow-ai/openrag",
     "url": "https://github.com/langflow-ai/openrag",
     "description": "OpenRAG is a comprehensive, single package Retrieval-Augmented Generation platform built on Langflow, Docling, and Opensearch.",
     "language": "Python",
-    "total_stars": 2415,
+    "total_stars": 2430,
     "stars_today": 905,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:15"
   },
   {
     "name": "lightpanda-io/browser",
     "url": "https://github.com/lightpanda-io/browser",
     "description": "Lightpanda: the headless browser designed for AI and automation",
     "language": "Zig",
-    "total_stars": 16054,
+    "total_stars": 16132,
     "stars_today": 2093,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:15"
   },
   {
     "name": "obra/superpowers",
     "url": "https://github.com/obra/superpowers",
     "description": "An agentic skills framework & software development methodology that works.",
     "language": "Shell",
-    "total_stars": 82302,
+    "total_stars": 82361,
     "stars_today": 2106,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "public-apis/public-apis",
     "url": "https://github.com/public-apis/public-apis",
     "description": "A collective list of free APIs",
     "language": "Python",
-    "total_stars": 409827,
+    "total_stars": 409858,
     "stars_today": 892,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "promptfoo/promptfoo",
     "url": "https://github.com/promptfoo/promptfoo",
     "description": "Test your prompts, agents, and RAGs. Red teaming/pentesting/vulnerability scanning for AI. Compare performance of GPT, Claude, Gemini, Llama, and more. Simple declarative configs with command line and CI/CD integration.",
     "language": "TypeScript",
-    "total_stars": 15520,
+    "total_stars": 15552,
     "stars_today": 1668,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "msitarzewski/agency-agents",
     "url": "https://github.com/msitarzewski/agency-agents",
     "description": "A complete AI agency at your fingertips - From frontend wizards to Reddit community ninjas, from whimsy injectors to reality checkers. Each agent is a specialized expert with personality, processes, and proven deliverables.",
     "language": "Shell",
-    "total_stars": 41353,
+    "total_stars": 41546,
     "stars_today": 5745,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "dolthub/dolt",
     "url": "https://github.com/dolthub/dolt",
     "description": "Dolt – Git for Data",
     "language": "Go",
-    "total_stars": 21205,
+    "total_stars": 21224,
     "stars_today": 60,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "google/A2UI",
     "url": "https://github.com/google/A2UI",
     "description": "",
     "language": "TypeScript",
-    "total_stars": 13140,
+    "total_stars": 13150,
     "stars_today": 635,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "fishaudio/fish-speech",
     "url": "https://github.com/fishaudio/fish-speech",
     "description": "SOTA Open Source TTS",
     "language": "Python",
-    "total_stars": 26975,
+    "total_stars": 26988,
     "stars_today": 559,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "alibaba/page-agent",
     "url": "https://github.com/alibaba/page-agent",
     "description": "JavaScript in-page GUI agent. Control web interfaces with natural language.",
     "language": "TypeScript",
-    "total_stars": 7922,
+    "total_stars": 7963,
     "stars_today": 1468,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "anthropics/claude-plugins-official",
     "url": "https://github.com/anthropics/claude-plugins-official",
     "description": "Official, Anthropic-managed directory of high quality Claude Code Plugins.",
     "language": "Python",
-    "total_stars": 10923,
+    "total_stars": 10939,
     "stars_today": 654,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "AstrBotDevs/AstrBot",
     "url": "https://github.com/AstrBotDevs/AstrBot",
     "description": "Agentic IM Chatbot infrastructure that integrates lots of IM platforms, LLMs, plugins and AI feature, and can be your openclaw alternative. ✨",
     "language": "Python",
-    "total_stars": 24166,
+    "total_stars": 24193,
     "stars_today": 1128,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:38"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "vectorize-io/hindsight",
     "url": "https://github.com/vectorize-io/hindsight",
     "description": "Hindsight: Agent Memory That Learns",
     "language": "Python",
-    "total_stars": 3797,
+    "total_stars": 3809,
     "stars_today": 595,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:39"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "InsForge/InsForge",
     "url": "https://github.com/InsForge/InsForge",
     "description": "Give agents everything they need to ship fullstack apps. The backend built for agentic development.",
     "language": "TypeScript",
-    "total_stars": 3743,
+    "total_stars": 3761,
     "stars_today": 766,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:39"
+    "fetched_at": "2026-03-14 17:28:16"
   },
   {
     "name": "google-ai-edge/LiteRT",
     "url": "https://github.com/google-ai-edge/LiteRT",
     "description": "LiteRT, successor to TensorFlow Lite. is Google's On-device framework for high-performance ML & GenAI deployment on edge platforms, via efficient conversion, runtime, and optimization",
     "language": "C++",
-    "total_stars": 1907,
+    "total_stars": 1911,
     "stars_today": 211,
     "forks": 0,
     "source": "github_trending",
-    "fetched_at": "2026-03-14 16:26:39"
+    "fetched_at": "2026-03-14 17:28:16"
   }
 ]

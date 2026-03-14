@@ -55,17 +55,11 @@ def analyze_article(article_id):
 def daily_report():
     """显示今日趋势报告"""
     try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            today = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute('SELECT summary, recommendations FROM daily_reports WHERE report_date = ?', (today,))
-            row = cursor.fetchone()
+        today = datetime.now().strftime('%Y-%m-%d')
+        report = db.get_report_by_date(today)
         
-        if not row:
+        if not report:
             return "今日报告尚未生成，请等待定时任务运行或手动触发。"
-        
-        summary = row[0]
-        recommendations = json.loads(row[1]) if row[1] else []
         
         # 创建报告模板
         REPORT_TEMPLATE = '''
@@ -112,6 +106,7 @@ def daily_report():
                 
                 <div class="nav">
                     <a href="/">← 返回首页</a>
+                    <a href="/reports">📚 历史报告</a>
                     <a href="#" onclick="location.reload()">🔄 刷新报告</a>
                 </div>
             </div>
@@ -120,13 +115,225 @@ def daily_report():
         '''
         
         return render_template_string(REPORT_TEMPLATE, 
-                                    summary=summary, 
-                                    recommendations=recommendations,
+                                    summary=report['summary'], 
+                                    recommendations=report['recommendations'],
                                     today=today)
         
     except Exception as e:
         print(f"获取报告失败: {e}")
         return f"获取报告失败: {e}"
+
+@app.route('/reports')
+def reports_list():
+    """显示历史报告列表"""
+    try:
+        reports = db.get_daily_reports(limit=30)
+        
+        REPORTS_TEMPLATE = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>TechPulse AI - 历史报告</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { text-align: center; margin-bottom: 30px; }
+                .report-item { background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #4a90e2; }
+                .report-date { font-weight: bold; color: #333; }
+                .report-summary { color: #666; margin-top: 5px; font-size: 0.9rem; }
+                .nav { text-align: center; margin-top: 30px; }
+                .nav a { color: #4a90e2; text-decoration: none; margin: 0 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📚 TechPulse AI 历史报告</h1>
+                    <p>查看过去30天的技术趋势分析报告</p>
+                </div>
+                
+                {% if reports %}
+                <div class="reports-list">
+                    {% for report in reports %}
+                    <div class="report-item">
+                        <div class="report-date">
+                            <a href="/daily/{{ report.report_date }}">{{ report.report_date }}</a>
+                        </div>
+                        <div class="report-summary">
+                            {{ report.summary[:200] }}{% if report.summary|length > 200 %}...{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <p>暂无历史报告，请等待定时任务生成报告。</p>
+                </div>
+                {% endif %}
+                
+                <div class="nav">
+                    <a href="/">← 返回首页</a>
+                    <a href="/daily">📊 今日报告</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        return render_template_string(REPORTS_TEMPLATE, reports=reports)
+        
+    except Exception as e:
+        print(f"获取报告列表失败: {e}")
+        return f"获取报告列表失败: {e}"
+@app.route('/daily/<date_str>')
+def daily_report_by_date(date_str):
+    """显示指定日期的趋势报告"""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT summary, recommendations FROM daily_reports WHERE report_date = ?', (date_str,))
+            row = cursor.fetchone()
+        
+        if not row:
+            return f"{date_str} 的报告不存在。"
+        
+        summary = row[0]
+        recommendations = json.loads(row[1]) if row[1] else []
+        
+        # 使用相同的报告模板
+        REPORT_TEMPLATE = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>TechPulse AI - 每日趋势报告</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { text-align: center; margin-bottom: 30px; }
+                .summary { background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; line-height: 1.6; }
+                .recommendations { margin-top: 20px; }
+                .recommendation { background: #f9f9f9; padding: 15px; margin: 10px 0; border-left: 4px solid #4a90e2; border-radius: 4px; }
+                .nav { text-align: center; margin-top: 30px; }
+                .nav a { color: #4a90e2; text-decoration: none; margin: 0 10px; }
+                .export-buttons { text-align: center; margin: 20px 0; }
+                .export-btn { background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🤖 TechPulse AI 每日趋势报告</h1>
+                    <p>报告日期: {{ date_str }}</p>
+                </div>
+                
+                <div class="export-buttons">
+                    <button class="export-btn" onclick="exportMarkdown()">📄 导出Markdown</button>
+                    <button class="export-btn" onclick="exportPDF()">📊 导出PDF</button>
+                </div>
+                
+                <div class="summary">
+                    <h2>📊 技术趋势总结</h2>
+                    <p>{{ summary }}</p>
+                </div>
+                
+                {% if recommendations %}
+                <div class="recommendations">
+                    <h2>⭐ 推荐阅读</h2>
+                    {% for rec in recommendations %}
+                    <div class="recommendation">
+                        <h3>{{ rec.title }}</h3>
+                        <p>{{ rec.reason }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="nav">
+                    <a href="/">← 返回首页</a>
+                    <a href="/daily">📊 今日报告</a>
+                </div>
+            </div>
+            
+            <script>
+            function exportMarkdown() {
+                const content = `# TechPulse AI 趋势报告\\n\\n**报告日期**: {{ date_str }}\\n\\n## 📊 技术趋势总结\\n\\n{{ summary }}\\n\\n{% if recommendations %}## ⭐ 推荐阅读\\n\\n{% for rec in recommendations %}### {{ rec.title }}\\n\\n{{ rec.reason }}\\n\\n{% endfor %}{% endif %}`;
+                
+                const blob = new Blob([content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `techpulse-report-{{ date_str }}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            function exportPDF() {
+                alert('PDF导出功能需要后端支持，正在开发中...');
+            }
+            </script>
+        </body>
+        </html>
+        '''
+        
+        return render_template_string(REPORT_TEMPLATE, 
+                                    summary=summary, 
+                                    recommendations=recommendations,
+                                    date_str=date_str)
+        
+    except Exception as e:
+        print(f"获取报告失败: {e}")
+        return f"获取报告失败: {e}"
+@app.route('/api/export/<date_str>/<format>')
+def export_report(date_str: str, format: str):
+    """导出报告API"""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT summary, recommendations FROM daily_reports WHERE report_date = ?', (date_str,))
+            row = cursor.fetchone()
+        
+        if not row:
+            return {"error": "报告不存在"}, 404
+        
+        report = {
+            'summary': row[0],
+            'recommendations': json.loads(row[1]) if row[1] else []
+        }
+        
+        if format == 'markdown':
+            content = f"""# TechPulse AI 趋势报告
+**报告日期**: {date_str}
+## 📊 技术趋势总结
+{report['summary']}
+"""
+            
+            if report['recommendations']:
+                content += "## ⭐ 推荐阅读\n\n"
+                for rec in report['recommendations']:
+                    content += f"### {rec['title']}\n\n{rec['reason']}\n\n"
+            
+            return content, 200, {
+                'Content-Type': 'text/markdown',
+                'Content-Disposition': f'attachment; filename="techpulse-report-{date_str}.md"'
+            }
+        
+        elif format == 'json':
+            from flask import jsonify
+            return jsonify(report), 200, {
+                'Content-Type': 'application/json',
+                'Content-Disposition': f'attachment; filename="techpulse-report-{date_str}.json"'
+            }
+        
+        else:
+            return {"error": "不支持的格式"}, 400
+            
+    except Exception as e:
+        print(f"导出报告失败: {e}")
+        return {"error": str(e)}, 500
 
 # HTML模板（最简单的内嵌模板）
 HTML_TEMPLATE = '''
