@@ -3,9 +3,11 @@
 TechPulse AI - Web展示
 最简单的Flask应用，显示数据库中的文章
 """
-
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, render_template_string
 import sys
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -13,9 +15,118 @@ from datetime import datetime
 sys.path.append(str(Path(__file__).parent))
 
 from src.storage.database import Database
+from src.analyzers.ai_analyzer import AIAnalyzer
 
 app = Flask(__name__)
 db = Database()
+
+# AI分析路由
+@app.route('/analyze/<int:article_id>', methods=['POST'])
+def analyze_article(article_id):
+    """对单篇文章生成AI摘要"""
+    try:
+        # 获取文章
+        all_articles = db.get_latest_articles(100)
+        article = next((a for a in all_articles if hasattr(a, 'id') and a.id == article_id), None)
+        
+        if not article:
+            return {"error": "文章不存在"}, 404
+        
+        # 检查是否已有AI摘要
+        if hasattr(article, 'ai_summary') and article.ai_summary:
+            return {"summary": article.ai_summary, "cached": True}
+        
+        # 调用AI分析器
+        analyzer = AIAnalyzer()
+        summary = analyzer.summarize_article(article)
+        
+        # 保存摘要到数据库
+        article.ai_summary = summary
+        article.ai_analyzed_at = datetime.now().isoformat()
+        db.save_article(article)
+        
+        return {"summary": summary, "cached": False}
+        
+    except Exception as e:
+        print(f"AI分析失败: {e}")
+        return {"error": "AI分析失败，请检查API配置"}, 500
+
+@app.route('/daily')
+def daily_report():
+    """显示今日趋势报告"""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            today = datetime.now().strftime('%Y-%m-%d')
+            cursor.execute('SELECT summary, recommendations FROM daily_reports WHERE report_date = ?', (today,))
+            row = cursor.fetchone()
+        
+        if not row:
+            return "今日报告尚未生成，请等待定时任务运行或手动触发。"
+        
+        summary = row[0]
+        recommendations = json.loads(row[1]) if row[1] else []
+        
+        # 创建报告模板
+        REPORT_TEMPLATE = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>TechPulse AI - 每日趋势报告</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { text-align: center; margin-bottom: 30px; }
+                .summary { background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 30px; line-height: 1.6; }
+                .recommendations { margin-top: 20px; }
+                .recommendation { background: #f9f9f9; padding: 15px; margin: 10px 0; border-left: 4px solid #4a90e2; border-radius: 4px; }
+                .nav { text-align: center; margin-top: 30px; }
+                .nav a { color: #4a90e2; text-decoration: none; margin: 0 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🤖 TechPulse AI 每日趋势报告</h1>
+                    <p>报告日期: {{ today }}</p>
+                </div>
+                
+                <div class="summary">
+                    <h2>📊 今日技术趋势总结</h2>
+                    <p>{{ summary }}</p>
+                </div>
+                
+                {% if recommendations %}
+                <div class="recommendations">
+                    <h2>⭐ 今日推荐阅读</h2>
+                    {% for rec in recommendations %}
+                    <div class="recommendation">
+                        <h3>{{ rec.title }}</h3>
+                        <p>{{ rec.reason }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="nav">
+                    <a href="/">← 返回首页</a>
+                    <a href="#" onclick="location.reload()">🔄 刷新报告</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        
+        return render_template_string(REPORT_TEMPLATE, 
+                                    summary=summary, 
+                                    recommendations=recommendations,
+                                    today=today)
+        
+    except Exception as e:
+        print(f"获取报告失败: {e}")
+        return f"获取报告失败: {e}"
 
 # HTML模板（最简单的内嵌模板）
 HTML_TEMPLATE = '''
@@ -204,6 +315,11 @@ HTML_TEMPLATE = '''
     <div class="header">
         <h1>🚀 TechPulse AI</h1>
         <p>每日技术趋势 · GitHub Trending + Hacker News</p>
+        <div style="margin-top: 0.5rem;">
+            <a href="/daily" style="background: #4a90e2; color: white; padding: 0.5rem 1rem; text-decoration: none; border-radius: 5px; font-size: 0.9rem;">
+                📊 查看今日趋势报告
+            </a>
+        </div>
         <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">
             🕒 最后更新: {{ latest_fetch }}
         </p>
@@ -281,6 +397,20 @@ HTML_TEMPLATE = '''
                         {{ article.description[:150] }}{% if article.description|length > 150 %}...{% endif %}
                     </div>
                     {% endif %}
+                    
+                    <!-- AI分析区域 -->
+                    <div style="margin-top: 0.5rem;">
+                        {% if article.ai_summary %}
+                        <div class="ai-summary" style="margin-top: 0.5rem; padding: 0.5rem; background: #f0f4f8; border-radius: 5px; font-size: 0.9rem;">
+                            <strong>🤖 AI摘要：</strong>{{ article.ai_summary }}
+                        </div>
+                        {% else %}
+                        <button class="ai-btn" data-id="{{ article.id }}" style="background: #4a90e2; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                            🤖 AI分析
+                        </button>
+                        <div class="ai-summary" id="summary-{{ article.id }}" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #f0f4f8; border-radius: 5px; font-size: 0.9rem;"></div>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -291,6 +421,55 @@ HTML_TEMPLATE = '''
         <p>TechPulse AI · 数据每4小时更新 · {{ now }}</p>
         <p style="margin-top: 0.5rem; font-size: 0.8rem;">⚡ 一个项目学完Python全栈 · 寒假学习计划</p>
     </div>
+    
+    <!-- AI分析JavaScript -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.ai-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const articleId = this.dataset.id;
+                const summaryDiv = document.getElementById(`summary-${articleId}`);
+                
+                // 如果已经加载过，直接显示
+                if (summaryDiv.innerHTML.trim() !== '') {
+                    summaryDiv.style.display = summaryDiv.style.display === 'block' ? 'none' : 'block';
+                    return;
+                }
+                
+                // 否则请求AI分析
+                this.disabled = true;
+                this.textContent = '分析中...';
+                
+                fetch(`/analyze/${articleId}`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.summary) {
+                            summaryDiv.innerHTML = `<strong>🤖 AI摘要：</strong>${data.summary}`;
+                            summaryDiv.style.display = 'block';
+                            
+                            // 如果是新分析的，重新加载页面显示缓存结果
+                            if (!data.cached) {
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 2000);
+                            }
+                        } else {
+                            summaryDiv.innerHTML = '<strong>❌ 分析失败：</strong>' + (data.error || '未知错误');
+                            summaryDiv.style.display = 'block';
+                        }
+                        this.disabled = false;
+                        this.textContent = '🤖 AI分析';
+                    })
+                    .catch(err => {
+                        summaryDiv.innerHTML = '<strong>❌ 请求失败：</strong>网络错误';
+                        summaryDiv.style.display = 'block';
+                        this.disabled = false;
+                        this.textContent = '🤖 AI分析';
+                    });
+            });
+        });
+    });
+    </script>
 </body>
 </html>
 '''

@@ -48,9 +48,23 @@ class Database:
                     author TEXT,
                     published_at TEXT,
                     fetched_at TEXT NOT NULL,
-                    extra TEXT,  -- JSON格式存储
+                    ai_summary TEXT,           -- AI生成的摘要
+                    ai_extra TEXT,             -- JSON格式的额外分析
+                    ai_analyzed_at TEXT,        -- AI分析时间
+                    extra TEXT,  -- JSON格式存储,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(source, source_id)  -- 避免重复
+                )
+            ''')
+            
+            # 创建每日报告表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS daily_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    report_date TEXT UNIQUE,
+                    summary TEXT,
+                    recommendations TEXT,  -- JSON格式
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -59,6 +73,12 @@ class Database:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_fetched_at ON articles(fetched_at)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_score ON articles(score DESC)')
             
+            cursor.execute("PRAGMA table_info(articles)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'ai_summary' not in columns:
+                cursor.execute("ALTER TABLE articles ADD COLUMN ai_summary TEXT")
+            if 'ai_extra' not in columns:
+                cursor.execute("ALTER TABLE articles ADD COLUMN ai_extra TEXT")
             conn.commit()
     
     def get_connection(self):
@@ -66,108 +86,47 @@ class Database:
         return sqlite3.connect(self.db_path)
     
     def save_article(self, article: Article) -> bool:
-        """保存单篇文章"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                
-                # 转换tags和extra为JSON
-                tags_json = json.dumps(article.tags, ensure_ascii=False)
-                extra_json = json.dumps(article.extra, ensure_ascii=False)
-                
-                cursor.execute('''
-                    INSERT OR REPLACE INTO articles 
-                    (source, source_id, title, url, description, category, 
-                     tags, score, comments, author, published_at, fetched_at, extra)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    article.source,
-                    article.source_id,
-                    article.title,
-                    article.url,
-                    article.description,
-                    article.category,
-                    tags_json,
-                    article.score,
-                    article.comments,
-                    article.author,
-                    article.published_at,
-                    article.fetched_at,
-                    extra_json
-                ))
-                
-                return True
-                
-        except Exception as e:
-            print(f"❌ 保存文章失败: {e}")
-            return False
-    
-    def save_article(self, article: Article) -> bool:
-        """保存单篇文章"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-            
-                # 重要：将文章转换为字典，并确保category是字符串
                 article_dict = article.to_dict()
-            
-                # 转换tags和extra为JSON
                 tags_json = json.dumps(article_dict.get('tags', []), ensure_ascii=False)
                 extra_json = json.dumps(article_dict.get('extra', {}), ensure_ascii=False)
             
-                # 确保category是字符串
+                # 处理 category 为字符串
                 category_value = article_dict.get('category', 'technology')
-                if hasattr(category_value, 'value'):  # 如果还是枚举，取value
+                if hasattr(category_value, 'value'):
                     category_value = category_value.value
-            
+
                 cursor.execute('''
                     INSERT OR REPLACE INTO articles 
                     (source, source_id, title, url, description, category, 
-                     tags, score, comments, author, published_at, fetched_at, extra)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tags, score, comments, author, published_at, fetched_at, extra,
+                    ai_summary, ai_extra, ai_analyzed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     article_dict.get('source', ''),
                     article_dict.get('source_id', ''),
                     article_dict.get('title', ''),
                     article_dict.get('url', ''),
                     article_dict.get('description', ''),
-                    category_value,  # 使用处理后的category
+                    category_value,
                     tags_json,
                     article_dict.get('score', 0),
                     article_dict.get('comments', 0),
                     article_dict.get('author', ''),
                     article_dict.get('published_at'),
                     article_dict.get('fetched_at'),
-                    extra_json
+                    extra_json,
+                    getattr(article, 'ai_summary', None),
+                    json.dumps(getattr(article, 'ai_extra', {})) if hasattr(article, 'ai_extra') else None,
+                    getattr(article, 'ai_analyzed_at', None)
                 ))
-            
                 return True
-            
         except Exception as e:
             print(f"❌ 保存文章失败: {e}")
             return False
     
-    def get_today_articles(self, source: Optional[str] = None) -> List[Article]:
-        """获取今天的文章"""
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            if source:
-                cursor.execute('''
-                    SELECT * FROM articles 
-                    WHERE date(fetched_at) = ? AND source = ?
-                    ORDER BY score DESC
-                ''', (today, source))
-            else:
-                cursor.execute('''
-                    SELECT * FROM articles 
-                    WHERE date(fetched_at) = ?
-                    ORDER BY source, score DESC
-                ''', (today,))
-            
-            return self._cursor_to_articles(cursor)
     
     def get_latest_articles(self, limit: int = 50) -> List[Article]:
         """获取最新文章"""
@@ -182,21 +141,17 @@ class Database:
             return self._cursor_to_articles(cursor)
     
     def _cursor_to_articles(self, cursor) -> List[Article]:
-        """将数据库游标结果转换为Article列表"""
         articles = []
-        
-        # 获取列名
         columns = [description[0] for description in cursor.description]
-        
+    
         for row in cursor.fetchall():
-            # 将行转换为字典
             row_dict = dict(zip(columns, row))
-            
+        
             # 解析JSON字段
             row_dict['tags'] = json.loads(row_dict['tags']) if row_dict['tags'] else []
             row_dict['extra'] = json.loads(row_dict['extra']) if row_dict['extra'] else {}
-            
-            # 创建Article对象
+        
+            # 创建Article对象（不包含AI字段，稍后手动添加）
             article = Article(
                 source=row_dict['source'],
                 source_id=row_dict['source_id'],
@@ -212,8 +167,21 @@ class Database:
                 fetched_at=row_dict['fetched_at'],
                 extra=row_dict['extra']
             )
-            articles.append(article)
         
+            # 添加AI分析相关属性
+            article.id = row_dict.get('id')
+            article.ai_summary = row_dict.get('ai_summary')
+            article.ai_analyzed_at = row_dict.get('ai_analyzed_at')
+            if row_dict.get('ai_extra'):
+                try:
+                    article.ai_extra = json.loads(row_dict['ai_extra'])
+                except:
+                    article.ai_extra = {}
+            else:
+                article.ai_extra = {}
+        
+            articles.append(article)
+    
         return articles
     
     def get_stats(self) -> Dict:
@@ -238,12 +206,34 @@ class Database:
             cursor.execute('SELECT COUNT(*) FROM articles WHERE date(fetched_at) = ?', (today,))
             today_count = cursor.fetchone()[0]
             
+            # 获取最新更新时间
+            cursor.execute('SELECT MAX(fetched_at) FROM articles')
+            latest_update = cursor.fetchone()[0]
+            
             return {
                 'total_articles': total,
                 'by_source': sources,
                 'today_articles': today_count,
+                'latest_update': latest_update,
                 'database_path': self.db_path
             }
+    
+    def get_today_articles(self) -> List[Article]:
+        """获取今日文章"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 获取今天的日期（格式：YYYY-MM-DD）
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            # 查询今天发布的文章
+            cursor.execute('''
+                SELECT * FROM articles 
+                WHERE DATE(published_at) = ? OR DATE(fetched_at) = ?
+                ORDER BY published_at DESC
+            ''', (today, today))
+            
+            return self._cursor_to_articles(cursor)
     
     def clear_old_data(self, days: int = 7):
         """清理旧数据（保留最近days天）"""

@@ -50,6 +50,10 @@ class Article:
     # 扩展字段（存储各数据源特有的信息）
     extra: Dict[str, Any] = None
     
+    ai_summary: Optional[str] = None          # 新增
+    ai_extra: Optional[Dict[str, Any]] = None # 新增
+    ai_analyzed_at: Optional[str] = None
+    
     def __post_init__(self):
         """初始化后处理"""
         if self.tags is None:
@@ -64,13 +68,7 @@ class Article:
                 self.category = ArticleCategory(self.category)
             except ValueError:
                 self.category = ArticleCategory.GENERAL
-    def to_dict(self) -> Dict:
-        """转换为字典，处理枚举序列化"""
-        data = asdict(self)
-        # 将枚举转换为值
-        if 'category' in data and isinstance(data['category'], ArticleCategory):
-            data['category'] = data['category'].value
-        return data
+    
 
     def to_dict(self) -> Dict:
         """转换为字典，处理枚举序列化"""

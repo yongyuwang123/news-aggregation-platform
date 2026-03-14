@@ -65,7 +65,9 @@ data_source_manager = DataSourceManager()
 # 注册可用的数据源类型（在文件末尾）
 from .sina_news_source import SinaNewsDataSource
 from .github_trending import GitHubTrendingDataSource
+from .rss_source import RSSDataSource
 
+data_source_manager.register_source_type('rss', RSSDataSource)
 data_source_manager.register_source_type('sina_news', SinaNewsDataSource)
 data_source_manager.register_source_type('github_trending', GitHubTrendingDataSource)
 

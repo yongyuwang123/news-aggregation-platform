@@ -1,5 +1,3 @@
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 """
 Hacker News 数据采集模块
@@ -7,107 +5,81 @@ Hacker News 数据采集模块
 API文档：https://github.com/HackerNews/API
 """
 
-import requests
+
 from typing import List, Dict, Optional
+from datetime import datetime
+import sys
+import io
+import requests
 import time
 import json
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Hacker News API 基础URL
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
 BASE_URL = "https://hacker-news.firebaseio.com/v0"
+MAX_WORKERS = 10          # 同时并发数
+REQUEST_TIMEOUT = 15      # 单个请求超时
+RETRIES = 2               # 失败重试次数
 
-def fetch_top_stories(limit: int = 30) -> List[Dict]:
-    """
-    获取Hacker News Top Stories
-    
-    Args:
-        limit: 获取的故事数量，默认30条
-        
-    Returns:
-        故事列表，每个故事包含标题、链接、分数等信息
-    """
-    
+session = requests.Session()
+session.headers.update({'User-Agent': 'Mozilla/5.0'})
+
+def fetch_story_detail(story_id: int) -> dict:
+    """获取单个故事详情（带重试）"""
+    for attempt in range(RETRIES + 1):
+        try:
+            url = f"{BASE_URL}/item/{story_id}.json"
+            resp = session.get(url, timeout=REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            item = resp.json()
+            if item.get('type') != 'story':
+                return None
+            timestamp = item.get('time', 0)
+            publish_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            return {
+                'id': story_id,
+                'title': item.get('title', ''),
+                'url': item.get('url', f"https://news.ycombinator.com/item?id={story_id}"),
+                'score': item.get('score', 0),
+                'descendants': item.get('descendants', 0),
+                'author': item.get('by', 'unknown'),
+                'publish_time': publish_time,
+                'timestamp': timestamp,
+                'source': 'hacker_news',
+                'fetched_at': time.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        except Exception as e:
+            if attempt == RETRIES:
+                print(f"⚠️ 故事 {story_id} 失败: {e}")
+                return None
+            time.sleep(1)  # 重试前等待
+
+def fetch_top_stories(limit: int = 30) -> list:
     print(f"[Search] 正在获取Hacker News Top {limit} 故事...")
-    
     try:
-        # 1. 获取Top Stories ID列表
-        top_stories_url = f"{BASE_URL}/topstories.json"
-        response = requests.get(top_stories_url, timeout=10)
-        response.raise_for_status()
-        
-        story_ids = response.json()
+        resp = session.get(f"{BASE_URL}/topstories.json", timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        story_ids = resp.json()[:limit]
         print(f"[OK] 获取到 {len(story_ids)} 个故事ID")
-        
-        # 2. 只取前limit个
-        story_ids = story_ids[:limit]
-        
-        # 3. 获取每个故事的详情
-        stories = []
-        for i, story_id in enumerate(story_ids, 1):
-            print(f"\r正在获取第 {i}/{limit} 个故事...", end="")
-            
-            story = fetch_story_detail(story_id)
-            if story:
-                stories.append(story)
-            
-            # 避免请求过快
-            time.sleep(0.1)
-        
-        print("\n[OK] 故事获取完成")
-        return stories
-        
-    except requests.exceptions.RequestException as e:
-        print(f"[Error] 请求失败: {e}")
+    except Exception as e:
+        print(f"[Error] 获取ID列表失败: {e}")
         return []
 
-def fetch_story_detail(story_id: int) -> Optional[Dict]:
-    """
-    获取单个故事的详细信息
-    
-    Args:
-        story_id: 故事ID
-        
-    Returns:
-        故事详细信息
-    """
-    try:
-        story_url = f"{BASE_URL}/item/{story_id}.json"
-        response = requests.get(story_url, timeout=10)
-        response.raise_for_status()
-        
-        item = response.json()
-        
-        # 只返回类型为story的项目
-        if item.get('type') != 'story':
-            return None
-        
-        # 转换时间戳
-        timestamp = item.get('time', 0)
-        publish_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        
-        # 构建返回数据
-        story = {
-            'id': story_id,
-            'title': item.get('title', ''),
-            'url': item.get('url', f"https://news.ycombinator.com/item?id={story_id}"),
-            'score': item.get('score', 0),
-            'descendants': item.get('descendants', 0),  # 评论数
-            'author': item.get('by', 'unknown'),
-            'publish_time': publish_time,
-            'timestamp': timestamp,
-            'source': 'hacker_news',
-            'fetched_at': time.strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # 如果有文本内容（Ask HN类型）
-        if item.get('text'):
-            story['text'] = item.get('text')
-        
-        return story
-        
-    except Exception as e:
-        print(f"\n⚠️ 获取故事 {story_id} 失败: {e}")
-        return None
+    stories = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_id = {executor.submit(fetch_story_detail, sid): sid for sid in story_ids}
+        for i, future in enumerate(as_completed(future_to_id), 1):
+            result = future.result()
+            if result:
+                stories.append(result)
+            print(f"\r进度: {i}/{len(story_ids)}", end="")
+    print("\n[OK] 故事获取完成")
+    return stories
+
+# 其余函数（filter_tech_related, save_to_json, print_sample, test_fetch_hacker_news）保持不变
+# 注意在 test_fetch_hacker_news 中调用 fetch_top_stories 即可
 
 def filter_tech_related(stories: List[Dict]) -> List[Dict]:
     """

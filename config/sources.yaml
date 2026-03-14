@@ -1,0 +1,11 @@
+rss_sources:
+  - name: "阮一峰的网络日志"
+    feed_url: "http://www.ruanyifeng.com/blog/atom.xml"
+    category: "technology"
+    enabled: true
+  - name: "Python 官方博客"
+    feed_url: "https://blog.python.org/feeds/posts/default"
+    category: "technology"
+  - name: "知乎每日精选"
+    feed_url: "https://www.zhihu.com/rss"
+    category: "general"
